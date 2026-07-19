@@ -1,21 +1,32 @@
 services:
   vllm-deepseek-r1-8b:
-    image: ${VLLM_IMAGE:-vllm/vllm-openai:v0.6.3.post1}
+    image: ${VLLM_IMAGE:-docker.m.daocloud.io/vllm/vllm-openai:v0.6.3.post1}
     container_name: vllm-deepseek-r1-8b
     restart: unless-stopped
     ipc: host
-    gpus: all
     ports:
       - "127.0.0.1:${VLLM_HOST_PORT:-18000}:8000"
     environment:
-      CUDA_VISIBLE_DEVICES: ${GPU_DEVICE:-2}
-      NVIDIA_VISIBLE_DEVICES: ${GPU_DEVICE:-2}
+      CUDA_DEVICE_ORDER: ${CUDA_DEVICE_ORDER:-PCI_BUS_ID}
+      CUDA_VISIBLE_DEVICES: ${GPU_DEVICE:-3}
+      NVIDIA_VISIBLE_DEVICES: ${GPU_DEVICE:-3}
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
       HF_HOME: ${HF_HOME:-/models/huggingface}
       HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
       HUGGING_FACE_HUB_TOKEN: ${HUGGING_FACE_HUB_TOKEN:-}
+      VLLM_API_KEY: ${VLLM_API_KEY:-admin}
+      LD_LIBRARY_PATH: /usr/local/nvidia/lib64
+    devices:
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidia1:/dev/nvidia1
+      - /dev/nvidia2:/dev/nvidia2
+      - /dev/nvidia3:/dev/nvidia3
     volumes:
-      - /nfs/wxz/source/huggingface/hub:/models/huggingface
+      - /nfs/wxz/source/huggingface:/models/huggingface
+      - ./.runtime/nvidia-driver-libs:/usr/local/nvidia/lib64:ro
     command:
       - --model
       - ${MODEL_ID:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}
@@ -31,8 +42,10 @@ services:
       - "${MAX_MODEL_LEN:-8192}"
       - --gpu-memory-utilization
       - "${GPU_MEMORY_UTILIZATION:-0.85}"
+      - --api-key
+      - ${VLLM_API_KEY:-admin}
     healthcheck:
-      test: ["CMD-SHELL", "python3 - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=3).read()\nPY"]
+      test: ["CMD-SHELL", "python3 - <<'PY'\nimport os\nimport urllib.request\nrequest = urllib.request.Request('http://127.0.0.1:8000/v1/models')\nrequest.add_header('Authorization', 'Bearer ' + os.environ.get('VLLM_API_KEY', 'admin'))\nurllib.request.urlopen(request, timeout=3).read()\nPY"]
       interval: 30s
       timeout: 10s
       retries: 20
