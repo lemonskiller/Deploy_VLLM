@@ -27,6 +27,21 @@ The first startup downloads the Hugging Face model through `https://hf-mirror.co
 ./scripts/test_vllm.sh
 ```
 
+## Idle Proxy
+
+The idle proxy listens on `172.18.0.1:18002` for NextOffer. It starts vLLM on demand and stops the vLLM container after 10 minutes without requests, releasing GPU memory.
+
+```bash
+./scripts/start_idle_proxy.sh
+tail -f logs/idle-proxy.log
+```
+
+Stop the proxy:
+
+```bash
+./scripts/stop_idle_proxy.sh
+```
+
 ## Compare Ollama And vLLM
 
 ```bash
@@ -53,4 +68,3 @@ sudo usermod -aG docker wuxinze
 ```
 
 After group membership changes, log out and log back in.
-
